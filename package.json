@@ -1,26 +1,37 @@
 {
   "name": "syra-platform",
   "version": "1.0.0",
+  "description": "Bitcoin micro-tipping platform on Stacks blockchain",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "deploy": "netlify deploy --prod"
+    "deploy": "netlify deploy --prod",
+    "deploy:draft": "netlify deploy"
   },
+  "keywords": [
+    "stacks",
+    "bitcoin",
+    "web3",
+    "tipping",
+    "creator-economy",
+    "nft",
+    "blockchain"
+  ],
+  "author": "Aber The Creator",
+  "license": "MIT",
   "dependencies": {
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "@turnkey/sdk-react": "^1.2.0",
-    "@turnkey/http": "^2.0.0",
     "@stacks/transactions": "^6.13.0",
     "@stacks/network": "^6.13.0",
     "@stacks/connect": "^7.8.0",
     "@stacks/blockchain-api-client": "^7.8.0",
     "lucide-react": "^0.263.1",
+    "zustand": "^4.4.0",
     "axios": "^1.6.0",
-    "date-fns": "^2.30.0",
-    "zustand": "^4.4.0"
+    "date-fns": "^2.30.0"
   },
   "devDependencies": {
     "@types/react": "^18.2.0",
@@ -30,5 +41,17 @@
     "postcss": "^8.4.32",
     "tailwindcss": "^3.3.6",
     "vite": "^5.0.0"
-  }
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/aberthecreator/syra.git"
+  },
+  "bugs": {
+    "url": "https://github.com/aberthecreator/syra/issues"
+  },
+  "homepage": "https://syra-platform.netlify.app"
 }
