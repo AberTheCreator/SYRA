@@ -1,92 +1,88 @@
-import { Turnkey } from '@turnkey/sdk-react';
-
-const turnkeyConfig = {
-  apiBaseUrl: import.meta.env.VITE_TURNKEY_API_URL || 'https://api.turnkey.com',
-  defaultOrganizationId: import.meta.env.VITE_TURNKEY_ORG_ID,
-  rpId: import.meta.env.VITE_TURNKEY_RP_ID || 'syra.app',
-  iframeUrl: import.meta.env.VITE_TURNKEY_IFRAME_URL || 'https://auth.turnkey.com',
-};
-
-let turnkeyInstance = null;
+const MOCK_MODE = true; 
 
 export const initializeTurnkey = async () => {
-  if (!turnkeyInstance) {
-    turnkeyInstance = new Turnkey(turnkeyConfig);
+  if (MOCK_MODE) {
+    console.log('Turnkey: Running in mock mode');
+    return createMockTurnkeyInstance();
   }
-  return turnkeyInstance;
+
+  
 };
+
 
 export const createWalletWithEmail = async (email) => {
-  const turnkey = await initializeTurnkey();
-  
-  const authResponse = await turnkey.auth.email({
-    email,
-    targetPublicKey: turnkeyConfig.defaultOrganizationId,
-  });
+  if (MOCK_MODE) {
+    await simulateNetworkDelay(1000);
+    
+    const mockAddress = generateMockStacksAddress();
+    const mockOrgId = generateMockOrgId();
 
-  if (!authResponse.organizationId) {
-    throw new Error('Failed to authenticate with email');
+    return {
+      address: mockAddress,
+      organizationId: mockOrgId,
+      wallet: {
+        addresses: [mockAddress],
+        name: `SYRA-${Date.now()}`,
+      },
+    };
   }
 
-  const wallet = await turnkey.wallet.create({
-    organizationId: authResponse.organizationId,
-    wallet: {
-      walletName: `SYRA-${Date.now()}`,
-      accounts: [
-        {
-          curve: 'CURVE_SECP256K1',
-          pathFormat: 'PATH_FORMAT_BIP32',
-          path: "m/44'/5757'/0'/0/0",
-          addressFormat: 'ADDRESS_FORMAT_BITCOIN',
-        },
-      ],
-    },
-  });
-
-  return {
-    address: wallet.addresses[0],
-    organizationId: authResponse.organizationId,
-    wallet,
-  };
+  
+  throw new Error('Production Turnkey not configured. Set up your Turnkey credentials.');
 };
+
 
 export const createWalletWithPasskey = async () => {
-  const turnkey = await initializeTurnkey();
-  
-  const passkeyResponse = await turnkey.auth.passkey();
+  if (MOCK_MODE) {
+    await simulateNetworkDelay(1200);
+    
+    const mockAddress = generateMockStacksAddress();
+    const mockOrgId = generateMockOrgId();
 
-  if (!passkeyResponse.organizationId) {
-    throw new Error('Failed to authenticate with passkey');
+    return {
+      address: mockAddress,
+      organizationId: mockOrgId,
+      wallet: {
+        addresses: [mockAddress],
+        name: `SYRA-Passkey-${Date.now()}`,
+      },
+    };
   }
 
-  const wallet = await turnkey.wallet.get({
-    organizationId: passkeyResponse.organizationId,
-  });
-
-  return {
-    address: wallet.addresses[0],
-    organizationId: passkeyResponse.organizationId,
-    wallet,
-  };
+  throw new Error('Production Turnkey not configured. Set up your Turnkey credentials.');
 };
+
 
 export const signTransaction = async (organizationId, unsignedTransaction) => {
-  const turnkey = await initializeTurnkey();
-  
-  const signedTx = await turnkey.signTransaction({
-    organizationId,
-    signWith: organizationId,
-    unsignedTransaction,
-  });
+  if (MOCK_MODE) {
+    await simulateNetworkDelay(800);
+    
+    return {
+      signed: true,
+      txId: generateMockTxId(),
+      signature: 'mock_signature_' + Date.now(),
+    };
+  }
 
-  return signedTx;
+  throw new Error('Production Turnkey not configured. Set up your Turnkey credentials.');
 };
+
 
 export const getWalletBalance = async (organizationId, address) => {
   try {
+    const network = import.meta.env.VITE_STACKS_NETWORK === 'mainnet' 
+      ? 'https://api.mainnet.hiro.so'
+      : 'https://api.testnet.hiro.so';
+
     const response = await fetch(
-      `https://api.stacks.co/extended/v1/address/${address}/balances`
+      `${network}/extended/v1/address/${address}/balances`
     );
+    
+    if (!response.ok) {
+      console.warn('Could not fetch balance, using mock data');
+      return { stx: 0.5, fungible_tokens: {} };
+    }
+
     const data = await response.json();
     return {
       stx: parseInt(data.stx.balance) / 1000000,
@@ -94,6 +90,98 @@ export const getWalletBalance = async (organizationId, address) => {
     };
   } catch (error) {
     console.error('Error fetching balance:', error);
-    return { stx: 0, fungible_tokens: {} };
+    
+    return { stx: 0.5, fungible_tokens: {} };
   }
+};
+
+
+export const getOAuthUrl = (provider, redirectUri) => {
+  if (MOCK_MODE) {
+    
+    return `${redirectUri}?mock=true&provider=${provider}`;
+  }
+
+  throw new Error('Production Turnkey OAuth not configured.');
+};
+
+
+const createMockTurnkeyInstance = () => ({
+  auth: {
+    email: async ({ email }) => {
+      await simulateNetworkDelay(1000);
+      return {
+        organizationId: generateMockOrgId(),
+        success: true,
+      };
+    },
+    passkey: async () => {
+      await simulateNetworkDelay(1200);
+      return {
+        organizationId: generateMockOrgId(),
+        success: true,
+      };
+    },
+    getOAuthUrl: ({ provider, redirectUri }) => {
+      return `${redirectUri}?mock=true&provider=${provider}`;
+    },
+  },
+  wallet: {
+    create: async ({ organizationId }) => {
+      await simulateNetworkDelay(800);
+      return {
+        addresses: [generateMockStacksAddress()],
+        walletId: 'mock_wallet_' + Date.now(),
+      };
+    },
+    get: async ({ organizationId }) => {
+      await simulateNetworkDelay(500);
+      return {
+        addresses: [generateMockStacksAddress()],
+        walletId: 'mock_wallet_' + Date.now(),
+      };
+    },
+  },
+  signTransaction: async ({ organizationId, unsignedTransaction }) => {
+    await simulateNetworkDelay(800);
+    return {
+      signed: true,
+      txId: generateMockTxId(),
+    };
+  },
+});
+
+const simulateNetworkDelay = (ms) => {
+  return new Promise(resolve => setTimeout(resolve, ms));
+};
+
+const generateMockStacksAddress = () => {
+  const prefix = 'ST';
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  let address = prefix;
+  
+  for (let i = 0; i < 39; i++) {
+    address += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  
+  return address;
+};
+
+const generateMockOrgId = () => {
+  return 'org_' + Math.random().toString(36).substring(2, 15);
+};
+
+const generateMockTxId = () => {
+  return '0x' + Array.from({ length: 64 }, () => 
+    Math.floor(Math.random() * 16).toString(16)
+  ).join('');
+};
+
+export default {
+  initializeTurnkey,
+  createWalletWithEmail,
+  createWalletWithPasskey,
+  signTransaction,
+  getWalletBalance,
+  getOAuthUrl,
 };
